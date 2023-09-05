@@ -2,30 +2,39 @@ const Book = require("../models/book");
 const fs = require("fs");
 
 exports.createBook = (req, res, next) => {
+  // Récupère les données du livre depuis la requête POST
   const bookObject = JSON.parse(req.body.book);
+
   delete bookObject._id;
   delete bookObject._userId;
-  let averageRating = bookObject.averageRating ? bookObject.averageRating : 0;
+
+  // Détermine la note moyenne du livre (s'il n'est pas défini, utilise 0 par défaut)
+  const averageRating = bookObject.averageRating || 0;
+
+  // Crée une instance du modèle Book avec les données du livre
   const book = new Book({
     ...bookObject,
-    userId: req.auth.userId,
+    userId: req.auth.userId, // Affecte l'ID de l'utilisateur authentifié au livre
     imageUrl: `${req.protocol}://${req.get("host")}/images/${
       req.file.filename
-    }`,
-    averageRating,
+    }`, // Crée l'URL de l'image à partir du nom de fichier téléchargé
+    averageRating, // Affecte la note moyenne au livre
   });
 
   book
-    .save()
-    .then(() => res.status(201).json({ message: "Livre enregistré !" }))
-    .catch((error) =>
-      res
-        .status(400)
-        .json({ error, message: "Erreur lors de la sauvegarde du livre" })
-    );
+    .save() // Utilisation de la méthode save() pour enregistrer le livre
+    .then(() => {
+      res.status(201).json({ message: "Livre enregistré !" });
+    })
+    .catch((error) => {
+      res.status(400).json({
+        error: error.message || "Erreur lors de la sauvegarde du livre",
+      });
+    });
 };
 
 exports.updateBook = (req, res, next) => {
+  // Crée un objet bookObject à partir des données reçues dans la requête
   const bookObject = req.file
     ? {
         ...JSON.parse(req.body.book),
@@ -34,30 +43,39 @@ exports.updateBook = (req, res, next) => {
         }`,
       }
     : { ...req.body };
+
+  // Recherche le livre par son ID dans la base de données
   Book.findOne({ _id: req.params.id })
     .then((book) => {
       if (!book) {
         return res.status(404).json({ message: "Livre non trouvé" });
       }
+
       if (book.userId != req.auth.userId) {
         return res.status(401).json({ message: "Pas autorisé" });
       }
+
       let previousImage = "";
       if (req.file) {
+        // Si une nouvelle image est téléchargée, conserve le nom de l'ancienne image
         previousImage = book.imageUrl.split("/images/")[1];
       }
+
+      // Met à jour le livre dans la base de données en utilisant Book.updateOne()
       Book.updateOne(
         { _id: req.params.id },
         { ...bookObject, _id: req.params.id }
       )
         .then(() => {
           if (previousImage) {
+            // Supprime l'ancienne image du système de fichiers (s'il y en a une)
             fs.unlink(`images/${previousImage}`, (err) => {});
           }
           res.status(200).json({ message: "Livre modifié!" });
         })
         .catch((error) => {
           if (req.file) {
+            // En cas d'erreur, supprime la nouvelle image téléchargée (si elle existe)
             fs.unlink(`images/${req.file.filename}`, (err) => {});
           }
           res.status(400).json({ error });
@@ -105,30 +123,36 @@ exports.getAllBooks = (req, res, next) => {
 };
 
 exports.rateBook = (req, res) => {
+  // Récupère la note du livre à partir de la requête
   const grade = parseFloat(req.body.rating);
 
+  // Vérifie si la note est valide (entre 0 et 5)
   if (isNaN(grade) || grade < 0 || grade > 5) {
     return res.status(400).json({ message: "La note est invalide." });
   }
 
+  // Recherche le livre par son ID dans la base de données
   Book.findOne({ _id: req.params.id })
     .then((book) => {
       if (!book) {
-        throw new Error("Livre non trouvé!");
+        return res.status(404).json({ message: "Livre non trouvé!" });
       }
 
-      const userRating = book.ratings.find(
+      // Vérifie si l'utilisateur a déjà noté ce livre
+      const hasUserRated = book.ratings.some(
         (rating) => rating.userId.toString() === req.auth.userId
       );
-      if (userRating) {
-        throw new Error("Vous avez déjà noté ce livre.");
+
+      if (hasUserRated) {
+        return res
+          .status(403)
+          .json({ message: "Vous avez déjà noté ce livre." });
       }
 
-      book.ratings.push({
-        userId: req.auth.userId,
-        grade,
-      });
+      // Ajoute la nouvelle notation à la liste des notations du livre
+      book.ratings.push({ userId: req.auth.userId, grade });
 
+      // Calcule la nouvelle note moyenne du livre
       const totalRatings = book.ratings.reduce(
         (acc, curr) => acc + curr.grade,
         0
@@ -138,6 +162,7 @@ exports.rateBook = (req, res) => {
       return book.save();
     })
     .then((updatedBook) => {
+      // Envoie une réponse JSON avec le livre mis à jour
       res.status(200).json(updatedBook);
     })
     .catch((error) => {
