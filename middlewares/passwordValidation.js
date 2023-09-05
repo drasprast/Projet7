@@ -1,6 +1,6 @@
-const PasswordValidator = require("password-validator");
+const PasswordValidation = require("password-validator");
 
-const passwordSchema = new PasswordValidator();
+const passwordSchema = new PasswordValidation();
 
 passwordSchema
   .is()
