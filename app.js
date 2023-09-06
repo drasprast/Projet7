@@ -17,10 +17,10 @@ app.use(express.json());
 app.use("/images", express.static("images"));
 
 mongoose
-  .connect(
-    "mongodb+srv://drasprast:8scaOED7zQV9kwNu@cluster0.e6sc4d5.mongodb.net/?retryWrites=true&w=majority",
-    { useNewUrlParser: true, useUnifiedTopology: true }
-  )
+  .connect(process.env.MONGODB_SECRET, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
   .then(() => console.log("Connexion à MongoDB réussie !"))
   .catch(() => console.log("Connexion à MongoDB échouée !"));
 
