@@ -66,8 +66,7 @@ const comparePasswords = (password, hashedPassword, res, userId) => {
         return handleLoginError(res);
       }
       // Si les mots de passe correspondent, génère un jeton JWT et le renvoie dans la réponse
-      // const token = jwt.sign({ userId }, process.env.JWT_SECRET,
-      const token = jwt.sign({ userId }, "RANDOM_TOKEN_SECRET", {
+      const token = jwt.sign({ userId }, process.env.JWT_SECRET, {
         expiresIn: "24h",
       });
       res.status(200).json({ userId, token });
