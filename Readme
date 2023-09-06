@@ -1,0 +1,4 @@
+.env 
+
+JWT_SECRET ="5e36d1e56f79b8759cfb7f3d1c0e5e1c9da579b7d56e8f8c"
+MONGODB_SECRET ="mongodb+srv://drasprast:8scaOED7zQV9kwNu@cluster0.e6sc4d5.mongodb.net/?retryWrites=true&w=majority"
